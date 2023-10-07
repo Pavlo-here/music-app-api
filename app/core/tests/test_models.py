@@ -1,7 +1,8 @@
 # tests for models
-
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+
+from core import models
 
 
 class ModelTests(TestCase):
@@ -29,14 +30,30 @@ class ModelTests(TestCase):
             user = get_user_model().objects.create_user(email, 'password123')
             self.assertEqual(user.email, expected)
 
-    def test_new_user_without_email(self):
+    def test_new_user_without_email_raises_error(self):
         with self.assertRaises(ValueError):
             get_user_model().objects.create_user("", "password123")
 
-    def test_create_super_user(self):
+    def test_create_superuser(self):
         user = get_user_model().objects.create_superuser(
             "test@example.com",
             "test123"
         )
         self.assertTrue(user.is_superuser)
         self.assertTrue(user.is_staff)
+
+    def test_create_playlist(self):
+        # test if creating playlist is successful
+        user = get_user_model().objects.create_user(
+            "test@example.com",
+            "test123"
+        )
+        playlist = models.Playlist.objects.create(
+            user=user,
+            title='Sample playlist name',
+            time_minutes=5,
+            general_genre="Sample genre",
+            description="Sample playlist description",
+        )
+
+        self.assertEqual(str(playlist), playlist.title)
