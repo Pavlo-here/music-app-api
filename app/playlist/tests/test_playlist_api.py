@@ -6,7 +6,10 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core.models import Playlist
+from core.models import (
+    Playlist,
+    Tag,
+)
 
 from playlist.serializers import (
     PlaylistSerializer,
@@ -186,3 +189,89 @@ class PrivatePlaylistAPITest(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
         self.assertTrue(Playlist.objects.filter(id=playlist.id).exists())
+
+    def test_create_playlist_with_new_tags(self):
+        """Test creating playlist with new tags"""
+        payload = {
+            "title": "Soft and gazing metal",
+            "time_minutes": 20,
+            "general_genre": "Prog Rock/Art Rock",
+            "tags": [{"name": "Metal"}, {"name": "Emotional"}]
+        }
+        res = self.client.post(PLAYLIST_URL, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        playlists = Playlist.objects.filter(user=self.user)
+        self.assertEqual(playlists.count(), 1)
+        playlist = playlists[0]
+        self.assertEqual(playlist.tags.count(), 2)
+        for tag in payload["tags"]:
+            exists = playlist.tags.filter(
+                name=tag["name"],
+                user=self.user,
+            )
+            self.assertTrue(exists)
+
+    def test_create_playlist_with_existing_tags(self):
+        """Test creating a playlist with existing tag."""
+        tag_emotional = Tag.objects.create(user=self.user, name='Emotional')
+        payload = {
+            "title": "Soft metal",
+            "time_minutes": 20,
+            "general_genre": "Prog Rock/Art Rock",
+            "tags": [{"name": "Metal"}, {"name": "Emotional"}]
+        }
+        res = self.client.post(PLAYLIST_URL, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        playlists = Playlist.objects.filter(user=self.user)
+        self.assertEqual(playlists.count(), 1)
+        playlist = playlists[0]
+        self.assertEqual(playlist.tags.count(), 2)
+        self.assertIn(tag_emotional, playlist.tags.all())
+        for tag in payload['tags']:
+            exists = playlist.tags.filter(
+                name=tag['name'],
+                user=self.user,
+            ).exists()
+            self.assertTrue(exists)
+
+    def test_create_tag_on_update(self):
+        """Test create tag when updating a playlist."""
+        playlist = create_playlist(user=self.user)
+
+        payload = {'tags': [{'name': 'Lunch'}]}
+        url = detail_url(playlist.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        new_tag = Tag.objects.get(user=self.user, name='Lunch')
+        self.assertIn(new_tag, playlist.tags.all())
+
+    def test_update_playlist_assign_tag(self):
+        """Test assigning an existing tag when updating a playlist."""
+        tag_breakfast = Tag.objects.create(user=self.user, name='Breakfast')
+        playlist = create_playlist(user=self.user)
+        playlist.tags.add(tag_breakfast)
+
+        tag_lunch = Tag.objects.create(user=self.user, name='Gym')
+        payload = {'tags': [{'name': 'Gym'}]}
+        url = detail_url(playlist.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(tag_lunch, playlist.tags.all())
+        self.assertNotIn(tag_breakfast, playlist.tags.all())
+
+    def test_clear_playlist_tags(self):
+        """Test clearing a playlists tags."""
+        tag = Tag.objects.create(user=self.user, name='Workout')
+        playlist = create_playlist(user=self.user)
+        playlist.tags.add(tag)
+
+        payload = {'tags': []}
+        url = detail_url(playlist.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(playlist.tags.count(), 0)
