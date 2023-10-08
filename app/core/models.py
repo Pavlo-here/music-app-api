@@ -50,3 +50,8 @@ class Playlist(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Tag(models.Model):
+    """Tag for filtering playlists."""
+    name = models.CharField(max_length=255)
