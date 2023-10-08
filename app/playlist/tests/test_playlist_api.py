@@ -36,6 +36,11 @@ def create_playlist(user, **params):
     return playlist
 
 
+def create_user(**params):
+    """Create and return a new user."""
+    return get_user_model().objects.create_user(**params)
+
+
 class PublicPlaylistAPITests(TestCase):
     # test for unauthenticated api requests
     def setUp(self):
@@ -52,10 +57,7 @@ class PrivatePlaylistAPITest(TestCase):
     # test for authenticated API requests
     def setUp(self):
         self.client = APIClient()
-        self.user = get_user_model().objects.create_user(
-            "user@example.com",
-            "password123"
-        )
+        self.user = create_user(email='user@example.com', password='test123')
         self.client.force_authenticate(self.user)
 
     def test_retrieve_playlists(self):
@@ -72,10 +74,7 @@ class PrivatePlaylistAPITest(TestCase):
 
     def test_playlist_list_limited_to_user(self):
         # test list of playlists is limited to auth user
-        other_user = get_user_model().objects.create_user(
-            "other@example.com",
-            "password123"
-        )
+        other_user = create_user(email='other@example.com', password='test123')
         create_playlist(other_user)
         create_playlist(self.user)
 
@@ -99,7 +98,7 @@ class PrivatePlaylistAPITest(TestCase):
     def test_create_playlist(self):
         # test creating a playlist
         payload = {
-            "title": "sample recipe",
+            "title": "sample playlist",
             "time_minutes": 30,
             "general_genre": "rock"
         }
@@ -111,3 +110,79 @@ class PrivatePlaylistAPITest(TestCase):
             self.assertEqual(getattr(playlist, k), v)
         self.assertEqual(playlist.user, self.user)
 
+    def test_partial_update(self):
+        """Test partial update of a playlist."""
+        original_link = 'googlelink'
+        playlist = create_playlist(
+            user=self.user,
+            title='Sample playlist title',
+            link=original_link,
+        )
+
+        payload = {'title': 'New playlist title'}
+        url = detail_url(playlist.id)
+        res = self.client.patch(url, payload)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        playlist.refresh_from_db()
+        self.assertEqual(playlist.title, payload['title'])
+        self.assertEqual(playlist.link, original_link)
+        self.assertEqual(playlist.user, self.user)
+
+    def test_full_update(self):
+        """Test full update of playlist."""
+        playlist = create_playlist(
+            user=self.user,
+            title='Sample playlist title',
+            link='googlelink',
+            description='Sample playlist description.',
+        )
+
+        payload = {
+            'title': 'New playlist title',
+            'link': 'https://example.com/new-playlist.pdf',
+            'description': 'New playlist description',
+            'time_minutes': 10,
+            'general_genre': "rock",
+        }
+        url = detail_url(playlist.id)
+        res = self.client.put(url, payload)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        playlist.refresh_from_db()
+        for k, v in payload.items():
+            self.assertEqual(getattr(playlist, k), v)
+        self.assertEqual(playlist.user, self.user)
+
+    def test_update_user_returns_error(self):
+        """Test changing the playlist user results in an error."""
+        new_user = create_user(email='user2@example.com', password='test123')
+        playlist = create_playlist(user=self.user)
+
+        payload = {'user': new_user.id}
+        url = detail_url(playlist.id)
+        self.client.patch(url, payload)
+
+        playlist.refresh_from_db()
+        self.assertEqual(playlist.user, self.user)
+
+    def test_delete_playlist(self):
+        """Test deleting a playlist successful."""
+        playlist = create_playlist(user=self.user)
+
+        url = detail_url(playlist.id)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Playlist.objects.filter(id=playlist.id).exists())
+
+    def test_playlist_other_users_playlist_error(self):
+        """Test trying to delete another users playlist gives error."""
+        new_user = create_user(email='user2@example.com', password='test123')
+        playlist = create_playlist(user=new_user)
+
+        url = detail_url(playlist.id)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(Playlist.objects.filter(id=playlist.id).exists())
