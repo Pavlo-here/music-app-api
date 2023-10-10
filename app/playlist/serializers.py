@@ -1,7 +1,16 @@
 # Serializer for playlist API
 
 from rest_framework import serializers
-from core.models import Playlist, Tag
+from core.models import Playlist, Tag, Song
+
+
+class SongSerializer(serializers.ModelSerializer):
+    """Serializer for songs."""
+
+    class Meta:
+        model = Song
+        fields = ["id", "name", "artist"]
+        read_only_fields = ["id"]
 
 
 class TagSerializer(serializers.ModelSerializer):

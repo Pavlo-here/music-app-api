@@ -12,7 +12,12 @@ from core.models import Song
 
 from playlist.serializers import SongSerializer
 
-SONGS_URL = reverse('song:song-list')
+SONGS_URL = reverse('playlist:song-list')
+
+
+def detail_url(song_id):
+    """Create and return song detail URL"""
+    return reverse("playlist:song-detail", args=[song_id])
 
 
 def create_user(email='user@example.com', password='testpass123'):
@@ -66,3 +71,26 @@ class PrivateSongsApiTests(TestCase):
         self.assertEqual(res.data[0]['name'], song.name)
         self.assertEqual(res.data[0]['artist'], song.artist)
         self.assertEqual(res.data[0]['id'], song.id)
+
+    def test_update_song(self):
+        """Test updating song"""
+        song = Song.objects.create(user=self.user, name="Beat it", artist="Jackson")
+
+        payload = {"name": "CoolName"}
+        url = detail_url(song.id)
+        res = self.client.patch(url, payload)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        song.refresh_from_db()
+        self.assertEqual(song.name, payload["name"])
+
+    def test_delete_song(self):
+        """Test deleting song"""
+        song = Song.objects.create(user=self.user, name="Shame", artist="Jackson")
+
+        url = detail_url(song.id)
+        res = self.client.delete(url)
+
+        self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
+        songs = Song.objects.filter(user=self.user)
+        self.assertFalse(songs.exists())
