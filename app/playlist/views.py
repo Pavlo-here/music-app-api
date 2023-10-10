@@ -1,4 +1,6 @@
-# views for playlist API
+"""
+Views for the playlist APIs
+"""
 from rest_framework import (
     viewsets,
     mixins,
@@ -14,7 +16,7 @@ from playlist import serializers
 
 
 class PlaylistViewSet(viewsets.ModelViewSet):
-    """View for manage playlists APIs."""
+    """View for manage playlist APIs."""
     serializer_class = serializers.PlaylistDetailSerializer
     queryset = Playlist.objects.all()
     authentication_classes = [TokenAuthentication]
@@ -32,15 +34,15 @@ class PlaylistViewSet(viewsets.ModelViewSet):
         return self.serializer_class
 
     def perform_create(self, serializer):
-        # create a new playlist
+        """Create a new playlist."""
         serializer.save(user=self.request.user)
 
 
-class TagViewSet(mixins.UpdateModelMixin,
+class TagViewSet(mixins.DestroyModelMixin,
+                 mixins.UpdateModelMixin,
                  mixins.ListModelMixin,
-                 mixins.DestroyModelMixin,
                  viewsets.GenericViewSet):
-    """Manage tags in the database"""
+    """Manage tags in the database."""
     serializer_class = serializers.TagSerializer
     queryset = Tag.objects.all()
     authentication_classes = [TokenAuthentication]
@@ -48,4 +50,4 @@ class TagViewSet(mixins.UpdateModelMixin,
 
     def get_queryset(self):
         """Filter queryset to authenticated user."""
-        return self.queryset.filter(user=self.request.user).order_by("-name")
+        return self.queryset.filter(user=self.request.user).order_by('-name')

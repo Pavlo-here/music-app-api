@@ -22,7 +22,7 @@ class PlaylistSerializer(serializers.ModelSerializer):
         fields = ["id", "title", "time_minutes", "general_genre", "link", "tags"]
         read_only_fields = ["id"]
 
-    def _get_or_create_tags(self, tags, recipe):
+    def _get_or_create_tags(self, tags, playlist):
         """Handle getting or creating tags as needed."""
         auth_user = self.context['request'].user
         for tag in tags:
@@ -30,10 +30,10 @@ class PlaylistSerializer(serializers.ModelSerializer):
                 user=auth_user,
                 **tag,
             )
-            recipe.tags.add(tag_obj)
+            playlist.tags.add(tag_obj)
 
     def create(self, validated_data):
-        """Create a recipe."""
+        """Create a playlist."""
         tags = validated_data.pop('tags', [])
         playlist = Playlist.objects.create(**validated_data)
         self._get_or_create_tags(tags, playlist)

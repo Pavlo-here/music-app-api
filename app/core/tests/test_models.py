@@ -69,3 +69,14 @@ class ModelTests(TestCase):
         tag = models.Tag.objects.create(user=user, name="Tag1")
 
         self.assertEqual(str(tag), tag.name)
+
+    def test_create_song(self):
+        """Test creating song is successful"""
+        user = create_user()
+        song = models.Song.objects.create(
+            user=user,
+            name="Song1",
+            artist="Artist1"
+        )
+
+        self.assertEqual(str(song), song.name)
