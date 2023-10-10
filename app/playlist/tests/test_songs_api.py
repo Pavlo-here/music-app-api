@@ -12,3 +12,57 @@ from core.models import Song
 
 from playlist.serializers import SongSerializer
 
+SONGS_URL = reverse('song:song-list')
+
+
+def create_user(email='user@example.com', password='testpass123'):
+    """Create and return user."""
+    return get_user_model().objects.create_user(email=email, password=password)
+
+
+class PublicSongsApiTests(TestCase):
+    """Test unauthenticated API requests."""
+
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_auth_required(self):
+        """Test auth is required for retrieving songs."""
+        res = self.client.get(SONGS_URL)
+
+        self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class PrivateSongsApiTests(TestCase):
+    """Test authenticated API requests."""
+
+    def setUp(self):
+        self.user = create_user()
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def test_retrieve_songs(self):
+        """Test retrieving a list of songs."""
+        Song.objects.create(user=self.user, name="Breed", artist="Nirvana")
+        Song.objects.create(user=self.user, name="Polly", artist="Nirvana")
+
+        res = self.client.get(SONGS_URL)
+
+        songs = Song.objects.all().order_by('-name')
+        serializer = SongSerializer(songs, many=True)
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data, serializer.data)
+
+    def test_songs_limited_to_user(self):
+        """Test list of songs is limited to authenticated user."""
+        user2 = create_user(email='user2@example.com')
+        Song.objects.create(user=user2, name="Drain you", artist="Nirvana")
+        song = Song.objects.create(user=self.user, name="Love Buzz", artist="Nirvana")
+
+        res = self.client.get(SONGS_URL)
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res.data), 1)
+        self.assertEqual(res.data[0]['name'], song.name)
+        self.assertEqual(res.data[0]['artist'], song.artist)
+        self.assertEqual(res.data[0]['id'], song.id)
