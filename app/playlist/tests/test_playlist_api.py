@@ -303,7 +303,8 @@ class PrivatePlaylistAPITest(TestCase):
 
     def test_create_playlist_with_existing_song(self):
         """Test creating a new playlist with existing song."""
-        song = Song.objects.create(user=self.user, name='Smells', artist="Alice in Chains")
+        song = Song.objects.create(user=self.user, name='Smells',
+                                   artist="Alice in Chains")
         payload = {
             'title': 'Vietnamese Soup',
             'time_minutes': 25,
@@ -341,7 +342,8 @@ class PrivatePlaylistAPITest(TestCase):
 
     def test_update_playlist_assign_song(self):
         """Test assigning an existing song when updating a playlist."""
-        song1 = Song.objects.create(user=self.user, name='Smells', artist="Alice in Chains")
+        song1 = Song.objects.create(user=self.user, name='Smells',
+                                    artist="Alice in Chains")
         playlist = create_playlist(user=self.user)
         playlist.songs.add(song1)
 
@@ -356,7 +358,8 @@ class PrivatePlaylistAPITest(TestCase):
 
     def test_clear_playlist_songs(self):
         """Test clearing a playlists songs."""
-        song = Song.objects.create(user=self.user, name='Smells', artist="Alice in Chains")
+        song = Song.objects.create(user=self.user, name='Smells',
+                                   artist="Alice in Chains")
         playlist = create_playlist(user=self.user)
         playlist.songs.add(song)
 

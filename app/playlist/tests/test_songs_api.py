@@ -62,7 +62,8 @@ class PrivateSongsApiTests(TestCase):
         """Test list of songs is limited to authenticated user."""
         user2 = create_user(email='user2@example.com')
         Song.objects.create(user=user2, name="Drain you", artist="Nirvana")
-        song = Song.objects.create(user=self.user, name="Love Buzz", artist="Nirvana")
+        song = Song.objects.create(user=self.user, name="Love Buzz",
+                                   artist="Nirvana")
 
         res = self.client.get(SONGS_URL)
 
@@ -74,7 +75,8 @@ class PrivateSongsApiTests(TestCase):
 
     def test_update_song(self):
         """Test updating song"""
-        song = Song.objects.create(user=self.user, name="Beat it", artist="Jackson")
+        song = Song.objects.create(user=self.user, name="Beat it",
+                                   artist="Jackson")
 
         payload = {"name": "CoolName"}
         url = detail_url(song.id)
@@ -86,7 +88,8 @@ class PrivateSongsApiTests(TestCase):
 
     def test_delete_song(self):
         """Test deleting song"""
-        song = Song.objects.create(user=self.user, name="Shame", artist="Jackson")
+        song = Song.objects.create(user=self.user, name="Shame",
+                                   artist="Jackson")
 
         url = detail_url(song.id)
         res = self.client.delete(url)
