@@ -9,6 +9,7 @@ from rest_framework.test import APIClient
 from core.models import (
     Playlist,
     Tag,
+    Song,
 )
 
 from playlist.serializers import (
@@ -275,3 +276,53 @@ class PrivatePlaylistAPITest(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(playlist.tags.count(), 0)
+
+    def test_crete_playlist_with_new_songs(self):
+        """Test creating a playlist with new songs."""
+        payload = {
+            "title": "New-Soft metal",
+            "time_minutes": 17,
+            "general_genre": "Prog Rock/Art Rock",
+            "songs": [{"name": "The Real", "artist": "Narrow Head"},
+                      {"name": "Sunday", "artist": "Narrow Head"}]
+        }
+        res = self.client.post(PLAYLIST_URL, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        playlists = Playlist.objects.filter(user=self.user)
+        self.assertEqual(playlists.count(), 1)
+        playlist = playlists[0]
+        self.assertEqual(playlist.songs.count(), 2)
+        for song in payload["songs"]:
+            exists = playlist.songs.filter(
+                name=song["name"],
+                artist=song["artist"],
+                user=self.user,
+            ).exists()
+            self.assertTrue(exists)
+
+    def test_create_playlist_with_existing_song(self):
+        """Test creating a new playlist with existing song."""
+        song = Song.objects.create(user=self.user, name='Smells', artist="Alice in Chains")
+        payload = {
+            'title': 'Vietnamese Soup',
+            'time_minutes': 25,
+            'price': '2.55',
+            "songs": [{"name": "Smells", "artist": "Alice in Chains"},
+                      {"name": "Breakup Song", "artist": "Narrow Head"}],
+        }
+        res = self.client.post(PLAYLIST_URL, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        playlists = Playlist.objects.filter(user=self.user)
+        self.assertEqual(playlists.count(), 1)
+        playlist = playlists[0]
+        self.assertEqual(playlist.songs.count(), 2)
+        self.assertIn(song, playlist.songs.all())
+        for song in payload['songs']:
+            exists = playlist.songs.filter(
+                name=song["name"],
+                artist=song["artist"],
+                user=self.user,
+            ).exists()
+            self.assertTrue(exists)
