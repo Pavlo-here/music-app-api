@@ -47,6 +47,33 @@ class Playlist(models.Model):
     time_minutes = models.IntegerField()
     general_genre = models.CharField(max_length=255, blank=True)
     link = models.CharField(max_length=255, blank=True)
+    tags = models.ManyToManyField("Tag")
+    songs = models.ManyToManyField("Song")
 
     def __str__(self):
         return self.title
+
+
+class Tag(models.Model):
+    """Tag for filtering playlists."""
+    name = models.CharField(max_length=255)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+    )
+
+    def __str__(self):
+        return self.name
+
+
+class Song(models.Model):
+    """Song for playlist"""
+    name = models.CharField(max_length=255)
+    artist = models.CharField(max_length=255)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+    )
+
+    def __str__(self):
+        return self.name

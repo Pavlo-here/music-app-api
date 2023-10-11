@@ -6,7 +6,11 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core.models import Playlist
+from core.models import (
+    Playlist,
+    Tag,
+    Song,
+)
 
 from playlist.serializers import (
     PlaylistSerializer,
@@ -186,3 +190,179 @@ class PrivatePlaylistAPITest(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_404_NOT_FOUND)
         self.assertTrue(Playlist.objects.filter(id=playlist.id).exists())
+
+    def test_create_playlist_with_new_tags(self):
+        """Test creating playlist with new tags"""
+        payload = {
+            "title": "Soft and gazing metal",
+            "time_minutes": 20,
+            "general_genre": "Prog Rock/Art Rock",
+            "tags": [{"name": "Metal"}, {"name": "Emotional"}]
+        }
+        res = self.client.post(PLAYLIST_URL, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        playlists = Playlist.objects.filter(user=self.user)
+        self.assertEqual(playlists.count(), 1)
+        playlist = playlists[0]
+        self.assertEqual(playlist.tags.count(), 2)
+        for tag in payload["tags"]:
+            exists = playlist.tags.filter(
+                name=tag["name"],
+                user=self.user,
+            )
+            self.assertTrue(exists)
+
+    def test_create_playlist_with_existing_tags(self):
+        """Test creating a playlist with existing tag."""
+        tag_emotional = Tag.objects.create(user=self.user, name='Emotional')
+        payload = {
+            "title": "Soft metal",
+            "time_minutes": 20,
+            "general_genre": "Prog Rock/Art Rock",
+            "tags": [{"name": "Metal"}, {"name": "Emotional"}]
+        }
+        res = self.client.post(PLAYLIST_URL, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        playlists = Playlist.objects.filter(user=self.user)
+        self.assertEqual(playlists.count(), 1)
+        playlist = playlists[0]
+        self.assertEqual(playlist.tags.count(), 2)
+        self.assertIn(tag_emotional, playlist.tags.all())
+        for tag in payload['tags']:
+            exists = playlist.tags.filter(
+                name=tag['name'],
+                user=self.user,
+            ).exists()
+            self.assertTrue(exists)
+
+    def test_create_tag_on_update(self):
+        """Test create tag when updating a playlist."""
+        playlist = create_playlist(user=self.user)
+
+        payload = {'tags': [{'name': 'Lunch'}]}
+        url = detail_url(playlist.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        new_tag = Tag.objects.get(user=self.user, name='Lunch')
+        self.assertIn(new_tag, playlist.tags.all())
+
+    def test_update_playlist_assign_tag(self):
+        """Test assigning an existing tag when updating a playlist."""
+        tag_breakfast = Tag.objects.create(user=self.user, name='Breakfast')
+        playlist = create_playlist(user=self.user)
+        playlist.tags.add(tag_breakfast)
+
+        tag_lunch = Tag.objects.create(user=self.user, name='Gym')
+        payload = {'tags': [{'name': 'Gym'}]}
+        url = detail_url(playlist.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(tag_lunch, playlist.tags.all())
+        self.assertNotIn(tag_breakfast, playlist.tags.all())
+
+    def test_clear_playlist_tags(self):
+        """Test clearing a playlists tags."""
+        tag = Tag.objects.create(user=self.user, name='Workout')
+        playlist = create_playlist(user=self.user)
+        playlist.tags.add(tag)
+
+        payload = {'tags': []}
+        url = detail_url(playlist.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(playlist.tags.count(), 0)
+
+    def test_crete_playlist_with_new_songs(self):
+        """Test creating a playlist with new songs."""
+        payload = {
+            "title": "New-Soft metal",
+            "time_minutes": 17,
+            "general_genre": "Prog Rock/Art Rock",
+            "songs": [{"name": "The Real", "artist": "Narrow Head"},
+                      {"name": "Sunday", "artist": "Narrow Head"}]
+        }
+        res = self.client.post(PLAYLIST_URL, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        playlists = Playlist.objects.filter(user=self.user)
+        self.assertEqual(playlists.count(), 1)
+        playlist = playlists[0]
+        self.assertEqual(playlist.songs.count(), 2)
+        for song in payload["songs"]:
+            exists = playlist.songs.filter(
+                name=song["name"],
+                artist=song["artist"],
+                user=self.user,
+            ).exists()
+            self.assertTrue(exists)
+
+    def test_create_playlist_with_existing_song(self):
+        """Test creating a new playlist with existing song."""
+        song = Song.objects.create(user=self.user, name='Smells', artist="Alice in Chains")
+        payload = {
+            'title': 'Vietnamese Soup',
+            'time_minutes': 25,
+            'price': '2.55',
+            "songs": [{"name": "Smells", "artist": "Alice in Chains"},
+                      {"name": "Breakup Song", "artist": "Narrow Head"}],
+        }
+        res = self.client.post(PLAYLIST_URL, payload, format="json")
+
+        self.assertEqual(res.status_code, status.HTTP_201_CREATED)
+        playlists = Playlist.objects.filter(user=self.user)
+        self.assertEqual(playlists.count(), 1)
+        playlist = playlists[0]
+        self.assertEqual(playlist.songs.count(), 2)
+        self.assertIn(song, playlist.songs.all())
+        for song in payload['songs']:
+            exists = playlist.songs.filter(
+                name=song["name"],
+                artist=song["artist"],
+                user=self.user,
+            ).exists()
+            self.assertTrue(exists)
+
+    def test_create_song_on_update(self):
+        """Test creating a song when updating a playlist."""
+        playlist = create_playlist(user=self.user)
+
+        payload = {"songs": [{"name": "Limes", "artist": "Chilli Peppers"}]}
+        url = detail_url(playlist.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        new_song = Song.objects.get(user=self.user, name='Limes')
+        self.assertIn(new_song, playlist.songs.all())
+
+    def test_update_playlist_assign_song(self):
+        """Test assigning an existing song when updating a playlist."""
+        song1 = Song.objects.create(user=self.user, name='Smells', artist="Alice in Chains")
+        playlist = create_playlist(user=self.user)
+        playlist.songs.add(song1)
+
+        song2 = Song.objects.create(user=self.user, name='Chili')
+        payload = {'songs': [{'name': 'Chili'}]}
+        url = detail_url(playlist.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(song2, playlist.songs.all())
+        self.assertNotIn(song1, playlist.songs.all())
+
+    def test_clear_playlist_songs(self):
+        """Test clearing a playlists songs."""
+        song = Song.objects.create(user=self.user, name='Smells', artist="Alice in Chains")
+        playlist = create_playlist(user=self.user)
+        playlist.songs.add(song)
+
+        payload = {'songs': []}
+        url = detail_url(playlist.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(playlist.songs.count(), 0)
