@@ -66,9 +66,14 @@ class PlaylistSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         """Update playlist"""
         tags = validated_data.pop('tags', None)
+        songs = validated_data.pop('songs', None)
         if tags is not None:
             instance.tags.clear()
             self._get_or_create_tags(tags, instance)
+
+        if songs is not None:
+            instance.songs.clear()
+            self._get_or_crete_songs(songs, instance)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)

@@ -326,3 +326,43 @@ class PrivatePlaylistAPITest(TestCase):
                 user=self.user,
             ).exists()
             self.assertTrue(exists)
+
+    def test_create_song_on_update(self):
+        """Test creating a song when updating a playlist."""
+        playlist = create_playlist(user=self.user)
+
+        payload = {"songs": [{"name": "Limes", "artist": "Chilli Peppers"}]}
+        url = detail_url(playlist.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        new_song = Song.objects.get(user=self.user, name='Limes')
+        self.assertIn(new_song, playlist.songs.all())
+
+    def test_update_playlist_assign_song(self):
+        """Test assigning an existing song when updating a playlist."""
+        song1 = Song.objects.create(user=self.user, name='Smells', artist="Alice in Chains")
+        playlist = create_playlist(user=self.user)
+        playlist.songs.add(song1)
+
+        song2 = Song.objects.create(user=self.user, name='Chili')
+        payload = {'songs': [{'name': 'Chili'}]}
+        url = detail_url(playlist.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn(song2, playlist.songs.all())
+        self.assertNotIn(song1, playlist.songs.all())
+
+    def test_clear_playlist_songs(self):
+        """Test clearing a playlists songs."""
+        song = Song.objects.create(user=self.user, name='Smells', artist="Alice in Chains")
+        playlist = create_playlist(user=self.user)
+        playlist.songs.add(song)
+
+        payload = {'songs': []}
+        url = detail_url(playlist.id)
+        res = self.client.patch(url, payload, format='json')
+
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(playlist.songs.count(), 0)
