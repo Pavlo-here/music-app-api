@@ -6,6 +6,11 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
 
+import tempfile
+import os
+
+from PIL import Image
+
 from core.models import (
     Playlist,
     Tag,
@@ -23,6 +28,11 @@ PLAYLIST_URL = reverse("playlist:playlist-list")
 def detail_url(playlist_id):
     # creating and return a playlist detail URL.
     return reverse("playlist:playlist-detail", args=[playlist_id])
+
+
+def image_upload_url(playlist_id):
+    """Create and return image upload url"""
+    return reverse("playlist:playlist-upload-image", args=[playlist_id])
 
 
 def create_playlist(user, **params):
@@ -369,3 +379,42 @@ class PrivatePlaylistAPITest(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(playlist.songs.count(), 0)
+
+
+class ImageUploadTests(TestCase):
+    """Tests for the image upload API"""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.user = get_user_model().objects.create_user(
+            "user@example.com",
+            "password123",
+        )
+        self.client.force_authenticate(self.user)
+        self.playlist = create_playlist(user=self.user)
+
+    def tearDown(self):
+        self.playlist.image.delete()
+
+    def test_upload_image(self):
+        """Test uploading an image to a playlist."""
+        url = image_upload_url(self.playlist.id)
+        with tempfile.NamedTemporaryFile(suffix=".jpg") as image_file:
+            img = Image.new("RGB", (10, 10))
+            img.save(image_file, format="JPEG")
+            image_file.seek(0)
+            payload = {"image": image_file}
+            res = self.client.post(url, payload, format="multipart")
+
+        self.playlist.refresh_from_db()
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn("image", res.data)
+        self.assertTrue(os.path.exists(self.playlist.image.path))
+
+    def test_upload_image_bad_request(self):
+        """Test uploading invalid image."""
+        url = image_upload_url(self.playlist.id)
+        payload = {"image": "notanimage"}
+        res = self.client.post(url, payload, format="multipart")
+
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
