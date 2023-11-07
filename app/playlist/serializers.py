@@ -86,4 +86,14 @@ class PlaylistDetailSerializer(PlaylistSerializer):
     """Serializer for playlist detail view."""
 
     class Meta(PlaylistSerializer.Meta):
-        fields = PlaylistSerializer.Meta.fields + ['description']
+        fields = PlaylistSerializer.Meta.fields + ['description', 'image']
+
+
+class PlaylistImageSerializer(serializers.ModelSerializer):
+    """Serializer for uploading images to playlists"""
+
+    class Meta:
+        model = Playlist
+        fields = ['id', 'image']
+        read_only_fields = ['id']
+        extra_kwargs = {'image': {'required': 'True'}}
