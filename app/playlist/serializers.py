@@ -86,7 +86,7 @@ class PlaylistDetailSerializer(PlaylistSerializer):
     """Serializer for playlist detail view."""
 
     class Meta(PlaylistSerializer.Meta):
-        fields = PlaylistSerializer.Meta.fields + ['description']
+        fields = PlaylistSerializer.Meta.fields + ['description', 'image']
 
 
 class PlaylistImageSerializer(serializers.ModelSerializer):
