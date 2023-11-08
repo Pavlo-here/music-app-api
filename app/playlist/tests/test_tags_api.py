@@ -8,7 +8,10 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core.models import Tag
+from core.models import (
+    Tag,
+    Playlist,
+)
 
 from playlist.serializers import TagSerializer
 
@@ -93,3 +96,45 @@ class PrivateTagsApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         tags = Tag.objects.filter(user=self.user)
         self.assertFalse(tags.exists())
+
+    def test_filter_tags_assigned_to_playlists(self):
+        """Test listing tags to those assigned to playlists."""
+        tag1 = Tag.objects.create(user=self.user, name="Gym")
+        tag2 = Tag.objects.create(user=self.user, name="Morning")
+        playlist = Playlist.objects.create(
+            title="Time to work",
+            time_minutes=40,
+            general_genre="House",
+            user=self.user,
+        )
+        playlist.tags.add(tag1)
+
+        res = self.client.get(TAGS_URL, {"assigned_only": 1})
+
+        s1 = TagSerializer(tag1)
+        s2 = TagSerializer(tag2)
+        self.assertIn(s1.data, res.data)
+        self.assertNotIn(s2.data, res.data)
+
+    def test_filtered_tags_unique(self):
+        """Test filtered tags returns a unique list."""
+        tag = Tag.objects.create(user=self.user, name="Gym")
+        Tag.objects.create(user=self.user, name="Morning")
+        playlist1 = Playlist.objects.create(
+            title="Time to work",
+            time_minutes=40,
+            general_genre="House",
+            user=self.user,
+        )
+        playlist2 = Playlist.objects.create(
+            title="Chill",
+            time_minutes=30,
+            general_genre="House",
+            user=self.user,
+        )
+        playlist1.tags.add(tag)
+        playlist2.tags.add(tag)
+
+        res = self.client.get(TAGS_URL, {"assigned_only": 1})
+
+        self.assertEqual(len(res.data), 1)
