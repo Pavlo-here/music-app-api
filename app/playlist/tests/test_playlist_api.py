@@ -380,6 +380,45 @@ class PrivatePlaylistAPITest(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(playlist.songs.count(), 0)
 
+    def test_filter_by_tags(self):
+        """Test filtering playlists by tags."""
+        p1 = create_playlist(user=self.user, title="Title Fight")
+        p2 = create_playlist(user=self.user, title="Ramones Punk Stories")
+        tag1 = Tag.objects.create(user=self.user, name="Nostalgic")
+        tag2 = Tag.objects.create(user=self.user, name="Emotional")
+        p1.tags.add(tag1)
+        p2.tags.add(tag2)
+        p3 = create_playlist(user=self.user, title="Music for gym")
+
+        params = {"tags": f"{tag1.id}, {tag2.id}"}
+        res = self.client.get(PLAYLIST_URL, params)
+
+        s1 = PlaylistSerializer(p1)
+        s2 = PlaylistSerializer(p2)
+        s3 = PlaylistSerializer(p3)
+        self.assertIn(s1.data, res.data)
+        self.assertIn(s2.data, res.data)
+        self.assertNotIn(s3.data, res.data)
+
+    def test_filter_by_songs(self):
+        """Test filtering playlists by songs."""
+        plist1 = create_playlist(user=self.user, title="Amyl and the Sniffers")
+        plist2 = create_playlist(user=self.user, title="HipHop essentials")
+        song1 = Song.objects.create(user=self.user, name="Followed by the Angels")
+        song2 = Song.objects.create(user=self.user, name="Rap God")
+        plist1.songs.add(song1)
+        plist2.songs.add(song2)
+        plist3 = create_playlist(user=self.user, title="Dance Day")
+
+        params = {"songs": f"{song1.id},{song2.id}"}
+        res = self.client.get(PLAYLIST_URL, params)
+
+        s1 = PlaylistSerializer(plist1)
+        s2 = PlaylistSerializer(plist2)
+        s3 = PlaylistSerializer(plist3)
+        self.assertIn(s1.data, res.data)
+        self.assertIn(s2.data, res.data)
+        self.assertNotIn(s3.data, res.data)
 
 class ImageUploadTests(TestCase):
     """Tests for the image upload API"""

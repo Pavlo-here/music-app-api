@@ -8,7 +8,10 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core.models import Song
+from core.models import (
+    Song,
+    Playlist,
+)
 
 from playlist.serializers import SongSerializer
 
@@ -97,3 +100,45 @@ class PrivateSongsApiTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_204_NO_CONTENT)
         songs = Song.objects.filter(user=self.user)
         self.assertFalse(songs.exists())
+
+    def test_filter_songs_assigned_to_playlists(self):
+        """test listing songs by those assigned to playlists."""
+        song1 = Song.objects.create(user=self.user, name="Back in Black")
+        song2 = Song.objects.create(user=self.user, name="TNT")
+        playlist = Playlist.objects.create(
+            title="ACDC pack",
+            time_minutes=6,
+            general_genre="Rock'n'Roll",
+            user=self.user,
+        )
+        playlist.songs.add(song1)
+
+        res = self.client.get(SONGS_URL, {"assigned_only": 1})
+
+        s1 = SongSerializer(song1)
+        s2 = SongSerializer(song2)
+        self.assertIn(s1.data, res.data)
+        self.assertNotIn(s2.data, res.data)
+
+    def test_filtered_songs_unique(self):
+        """Test filtered songs return a unique list"""
+        song = Song.objects.create(user=self.user, name="Sunday")
+        Song.objects.create(user=self.user, name="April")
+        playlist1 = Playlist.objects.create(
+            title="Days' songs",
+            time_minutes=4,
+            general_genre="Different",
+            user=self.user,
+        )
+        playlist2 = Playlist.objects.create(
+            title="Funny songs",
+            time_minutes=20,
+            general_genre="Different",
+            user=self.user,
+        )
+        playlist1.songs.add(song)
+        playlist2.songs.add(song)
+
+        res = self.client.get(SONGS_URL, {"assigned_only": 1})
+
+        self.assertEqual(len(res.data), 1)
